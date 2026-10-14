@@ -175,6 +175,24 @@ test("ripgrep buffer exhaustion reports partial results even below the match cap
   assert.equal(result.truncated, true);
 });
 
+test("file discovery keeps dotfiles, prunes excluded directories and honours tree depth", async (t) => {
+  const { root, services } = await fixture(t);
+  await fs.mkdir(path.join(root, "src", ".config", "deep"), { recursive: true });
+  await fs.mkdir(path.join(root, "dist"));
+  await fs.writeFile(path.join(root, "src", ".config", "a.ts"), "x\n");
+  await fs.writeFile(path.join(root, "src", ".config", "deep", "b.ts"), "x\n");
+  await fs.writeFile(path.join(root, "src", "c.js"), "x\n");
+  await fs.writeFile(path.join(root, "dist", "out.ts"), "x\n");
+  await fs.writeFile(path.join(root, ".gitignore"), "ignored-dir/\n");
+  await fs.mkdir(path.join(root, "ignored-dir"));
+  await fs.writeFile(path.join(root, "ignored-dir", "d.ts"), "x\n");
+
+  const files = (pattern: string) => services.repo.findFiles(pattern).then((r) => JSON.parse(r).files.map((f: { path: string }) => f.path));
+  assert.deepEqual(await files("**/*.ts"), ["src/.config/a.ts", "src/.config/deep/b.ts"]);
+  assert.deepEqual(await files("src/*.{js,ts}"), ["src/c.js"]);
+  assert.deepEqual((await services.repo.tree(2)).split("\n"), [".gitignore", "src", "src/.config", "src/c.js"]);
+});
+
 test("native search and discovery cannot follow a directory outside the repository", async (t) => {
   const { root, services } = await fixture(t);
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), "bridge-outside-"));

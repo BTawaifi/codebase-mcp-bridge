@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import fg from "fast-glob";
+import { Minimatch } from "minimatch";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { DEFAULT_EXCLUDE_GLOBS, MAX_FILE_BYTES, MAX_SEARCH_RESULTS } from "../config/allowlist.js";
@@ -14,6 +14,38 @@ const RG_TIMEOUT_COOLDOWN_MS = Number(process.env.BRIDGE_RG_TIMEOUT_COOLDOWN_MS 
 // Timed backoff after rg fails (timeout or ENOENT). Not a permanent latch: a
 // transient failure or a fixed environment recovers after the cooldown.
 let ripgrepRetryAfterMs = 0;
+
+type GlobOptions = { onlyFiles: boolean; ignore: string[]; deep?: number };
+
+// Replaces fast-glob, whose micromatch -> braces chain carries an unpatched advisory.
+// Node's fs.glob is not a substitute: it has no `dot` option and follows junctions.
+// Symbolic links are never followed, so discovery cannot leave the repository.
+async function globRepo(root: string, patterns: string[], options: GlobOptions): Promise<string[]> {
+  const mm = (pattern: string) => new Minimatch(pattern, { dot: true });
+  const include = patterns.map(mm);
+  const ignore = options.ignore.map(mm);
+  // micromatch treats "dir/**" as matching "dir" itself; minimatch does not, so
+  // directories are also pruned against each such pattern without its "/**".
+  const ignoreDir = [...ignore, ...options.ignore.filter((p) => p.endsWith("/**")).map((p) => mm(p.slice(0, -3)))];
+  const results: string[] = [];
+  const walk = async (dirRel: string, depth: number): Promise<void> => {
+    for (const entry of await fs.readdir(path.join(root, dirRel), { withFileTypes: true })) {
+      const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (ignoreDir.some((m) => m.match(rel))) continue;
+        if (!options.onlyFiles && include.some((m) => m.match(rel))) results.push(rel);
+        // depth counts path segments, matching fast-glob's `deep`
+        if ((options.deep === undefined || depth < options.deep) && include.some((m) => m.match(rel, true))) {
+          await walk(rel, depth + 1);
+        }
+      } else if (entry.isFile() && !ignore.some((m) => m.match(rel)) && include.some((m) => m.match(rel))) {
+        results.push(rel);
+      }
+    }
+  };
+  await walk("", 1);
+  return results;
+}
 
 type StructuredSearchContextLine = {
   line: number;
@@ -245,13 +277,7 @@ export class RepoService {
   async tree(depth = 3, exclude?: string[]): Promise<string> {
     const excludes = await this.getExcludeGlobs();
     const allExcludes = exclude ? [...excludes, ...exclude] : excludes;
-    const files = await fg(["**/*"], {
-      cwd: this.repoRoot,
-      dot: true,
-      onlyFiles: false,
-      deep: depth,
-      ignore: allExcludes
-    });
+    const files = await globRepo(this.repoRoot, ["**/*"], { onlyFiles: false, deep: depth, ignore: allExcludes });
     return files.sort().join("\n");
   }
 
@@ -263,13 +289,7 @@ export class RepoService {
       throw new Error("File discovery requires a limit of 1-200 and a non-negative integer offset");
     }
     const excludes = await this.getExcludeGlobs();
-    const files = await fg([pattern], {
-      cwd: this.repoRoot,
-      dot: true,
-      onlyFiles: true,
-      followSymbolicLinks: false,
-      ignore: excludes,
-    });
+    const files = await globRepo(this.repoRoot, [pattern], { onlyFiles: true, ignore: excludes });
 
     const fileSlice = files.sort().slice(offset, offset + maxResults);
     const results = await mapWithConcurrency(
@@ -369,12 +389,7 @@ export class RepoService {
 
   async indexableFiles(): Promise<string[]> {
     const excludes = await this.getExcludeGlobs();
-    const files = await fg(["**/*"], {
-      cwd: this.repoRoot,
-      dot: true,
-      onlyFiles: true,
-      ignore: excludes
-    });
+    const files = await globRepo(this.repoRoot, ["**/*"], { onlyFiles: true, ignore: excludes });
 
     const indexableCandidates = files.filter(file => this.security.isIndexable(file));
     const stats = await mapWithConcurrency(
@@ -533,12 +548,7 @@ export class RepoService {
     const profile = { globMs: 0, statMs: 0, readMs: 0, binaryCheckMs: 0, secretScanMs: 0, splitMs: 0, matchMs: 0, contextMs: 0 };
     const excludes = await this.getExcludeGlobs();
     const globStart = performance.now();
-    const files = await fg(glob ? [glob] : ["**/*"], {
-      cwd: this.repoRoot,
-      dot: true,
-      onlyFiles: true,
-      ignore: excludes,
-    });
+    const files = await globRepo(this.repoRoot, glob ? [glob] : ["**/*"], { onlyFiles: true, ignore: excludes });
     profile.globMs = performance.now() - globStart;
     const matches: StructuredSearchMatch[] = [];
     let truncated = false;
