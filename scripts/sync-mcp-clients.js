@@ -5,8 +5,9 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(".");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const stdioPath = path.join(repoRoot, "dist", "stdio.js");
 const serverName = "codebase-mcp-bridge";
 const TIMEOUT_MS = 20_000;

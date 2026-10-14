@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 
 const action = process.argv[2];
 if (action !== "install" && action !== "uninstall") {
@@ -8,7 +9,7 @@ if (action !== "install" && action !== "uninstall") {
   process.exit(1);
 }
 
-const repoRoot = path.resolve(".");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Plain paths: JSON.stringify escapes backslashes itself, so pre-escaping would store "C:\\\\..." on Windows.
 const stdioPath = path.join(repoRoot, "dist", "stdio.js");
 const serverName = "codebase-mcp-bridge";

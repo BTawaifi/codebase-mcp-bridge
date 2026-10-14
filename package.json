@@ -32,7 +32,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "fast-glob": "^3.3.3",
