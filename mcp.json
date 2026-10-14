@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "codebase-mcp-bridge-http": {
+      "url": "http://localhost:3030/mcp"
+    },
+    "codebase-mcp-bridge-stdio": {
+      "command": "node",
+      "args": ["dist/stdio.js"]
+    }
+  }
+}

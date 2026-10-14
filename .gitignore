@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.ai-bridge/
+.env
+.gstack/
+.claude/
+.cursor/
+.antigravitycli/
+.codegraph/
+HANDOFF.md
+*.scratch.txt
