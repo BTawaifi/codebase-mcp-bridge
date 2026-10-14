@@ -97,14 +97,21 @@ test('applyUnifiedDiff restores earlier writes if a later file write fails', asy
   const patches = service(root);
   const first = path.join(root, 'src', 'first.ts');
   await fs.writeFile(first, 'export const first = 1;\n', 'utf8');
-  await fs.writeFile(path.join(root, 'src', 'blocker'), 'not a directory\n', 'utf8');
 
+  // Every target passes planning (src/blocker does not exist yet), and the failure
+  // only appears in the write phase: once src/blocker is written as a file, creating
+  // src/blocker/ as a directory fails on every OS. A pre-existing file at src/blocker
+  // is rejected during planning on Linux (ENOTDIR), which never reaches rollback.
   const diff = [
     '--- a/src/first.ts',
     '+++ b/src/first.ts',
     '@@ -1,1 +1,1 @@',
     '-export const first = 1;',
     '+export const first = 2;',
+    '--- /dev/null',
+    '+++ b/src/blocker',
+    '@@ -0,0 +1,1 @@',
+    '+not a directory',
     '--- /dev/null',
     '+++ b/src/blocker/new.ts',
     '@@ -0,0 +1,1 @@',
@@ -113,6 +120,7 @@ test('applyUnifiedDiff restores earlier writes if a later file write fails', asy
 
   await assert.rejects(() => patches.applyUnifiedDiff(diff), /prior writes were restored/);
   assert.equal(await fs.readFile(first, 'utf8'), 'export const first = 1;\n');
+  await assert.rejects(() => fs.access(path.join(root, 'src', 'blocker')), { code: 'ENOENT' });
 });
 
 test('applyUnifiedDiff rejects duplicate file sections instead of overwriting an earlier section', async () => {

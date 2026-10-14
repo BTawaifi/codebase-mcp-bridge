@@ -1,5 +1,7 @@
 # Codebase MCP Bridge
 
+[![CI](https://github.com/BTawaifi/codebase-mcp-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/BTawaifi/codebase-mcp-bridge/actions/workflows/ci.yml)
+
 A compact [Model Context Protocol](https://modelcontextprotocol.io) server that gives LLM clients (ChatGPT, Claude, Codex, Cursor, Antigravity) **controlled** access to a source repository: search, read, patch with rollback, Git, and allowlisted validation.
 
 > **Design rule:** the bridge provides capabilities and facts; the model provides workflow and reasoning.
