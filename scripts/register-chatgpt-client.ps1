@@ -2,23 +2,15 @@ param(
   [string]$CallbackUrl,
   [string]$Name = "PC_CON",
   [string]$PublicUrl,
-  [string]$EnvPath = "../.env"
+  [string]$EnvPath
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "load-env.ps1")
 
-if (Test-Path -LiteralPath $EnvPath) {
-  Get-Content -LiteralPath $EnvPath | ForEach-Object {
-    $line = $_.Trim()
-    if (!$line -or $line.StartsWith("#")) { return }
-    $parts = $line.Split("=", 2)
-    if ($parts.Count -ne 2) { return }
-    $key = $parts[0].Trim()
-    $value = $parts[1].Trim().Trim('"').Trim("'")
-    [Environment]::SetEnvironmentVariable($key, $value, "Process")
-  }
-}
+if (!$EnvPath) { $EnvPath = $DefaultEnvPath }
+Import-BridgeEnv -Path $EnvPath | Out-Null
 
 if (!$PublicUrl) { $PublicUrl = $env:BRIDGE_PUBLIC_URL }
 if (!$PublicUrl) { throw "BRIDGE_PUBLIC_URL is not set. Pass -PublicUrl or set it in .env." }
@@ -27,13 +19,12 @@ $PublicUrl = $PublicUrl.TrimEnd("/")
 if (!$env:BRIDGE_OAUTH_SETUP_SECRET) { throw "BRIDGE_OAUTH_SETUP_SECRET is not set. Set it in .env or the current shell." }
 
 if (!$CallbackUrl) {
-  $callbackInput = Read-Host "ChatGPT callback URL or callback ID"
-  if (!$callbackInput) { throw "Callback URL or callback ID is required." }
-  if ($callbackInput -match "^https?://") {
-    $CallbackUrl = $callbackInput
-  } else {
-    $CallbackUrl = "https://chatgpt.com/connector/oauth/$callbackInput"
-  }
+  $CallbackUrl = Read-Host "ChatGPT callback URL or callback ID"
+  if (!$CallbackUrl) { throw "Callback URL or callback ID is required." }
+}
+# Accept either the full callback URL or just the ID ChatGPT shows, however the value arrived.
+if ($CallbackUrl -notmatch "^https?://") {
+  $CallbackUrl = "https://chatgpt.com/connector/oauth/$CallbackUrl"
 }
 
 $body = @{

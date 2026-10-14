@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$scripts = Get-ChildItem -Path "scripts" -Filter "*.ps1" -File
+$scripts = @(Get-ChildItem -Path $PSScriptRoot -Filter "*.ps1" -File)
 if (!$scripts) {
   Write-Host "No PowerShell scripts found."
   exit 0
@@ -15,7 +15,7 @@ foreach ($script in $scripts) {
   if ($parseErrors.Count -gt 0) {
     $failed = $true
     foreach ($parseError in $parseErrors) {
-      Write-Error "$($script.FullName):$($parseError.Extent.StartLineNumber):$($parseError.Message)"
+      Write-Error "$($script.FullName):$($parseError.Extent.StartLineNumber):$($parseError.Message)" -ErrorAction Continue
     }
   }
 }

@@ -2,7 +2,7 @@
 
 The bridge speaks MCP over **stdio** (local clients) and **Streamable HTTP** (anything that needs a network endpoint, with OAuth).
 
-## Stdio: Claude Code, Codex, Antigravity, Gemini CLI and other local agents
+## Stdio: Claude Code, Codex, Cursor, Antigravity and other local agents
 
 ```json
 {
@@ -15,11 +15,16 @@ The bridge speaks MCP over **stdio** (local clients) and **Streamable HTTP** (an
 }
 ```
 
-`npm run mcp:install` / `npm run mcp:uninstall` registers or removes the bridge in the Claude Desktop, Claude Code and Cursor configs (Windows, macOS and Linux paths). `npm run mcp:sync` writes the Gemini CLI config and copies [`mcp-instructions.md`](mcp-instructions.md) as its tool-selection guidance.
+Two helpers write these entries for you. Both set `BRIDGE_REPO_ROOT` to this checkout.
+
+| Command | Clients | Notes |
+|---|---|---|
+| `npm run mcp:install` / `mcp:uninstall` | Claude Desktop, Claude Code (`~/.claude.json`), Cursor (`~/.cursor/mcp.json`) | Windows, macOS and Linux paths; other servers and settings in those files are preserved |
+| `npm run mcp:sync` (`scripts/sync-mcp-clients.js`) | Antigravity CLI, Claude Desktop, Claude Code, Codex (`~/.codex/config.toml`) | Starts the built stdio server, reads its live tool list, writes per-tool schemas for Antigravity, and copies [`mcp-instructions.md`](mcp-instructions.md) as its tool-selection guidance. Run `npm run build` first. |
 
 ## HTTP + OAuth: ChatGPT developer-mode connector and remote clients
 
-1. Expose the local endpoint `http://127.0.0.1:3030/mcp` through an HTTPS tunnel. `scripts/start-all.ps1` does this with Cloudflare Tunnel: it starts the tunnel, reads the public URL, starts the bridge and registers the OAuth client.
+1. Expose the local endpoint `http://127.0.0.1:3030/mcp` through an HTTPS tunnel. On Windows, `scripts/start-all.ps1` does all of steps 1–3 with a Cloudflare quick tunnel. It starts the tunnel, reads the public URL, starts the bridge, waits for `/health`, then optionally registers the OAuth client. Ctrl+C stops both. It needs `cloudflared` on PATH or `CLOUDFLARED_PATH`.
 2. Start the bridge with the public URL as the OAuth issuer:
 
    ```powershell
@@ -43,7 +48,9 @@ $env:BRIDGE_REQUIRE_CLIENT_SECRET="true"
 npm run chatgpt:register -- -CallbackUrl "https://chatgpt.com/connector/oauth/YOUR_CALLBACK_ID"
 ```
 
-The script prints the connector URL, client id and secret, authorization and token URLs, resource and scopes to paste into ChatGPT's advanced OAuth settings. Use `client_secret_post` when client secrets are required.
+The script prints the connector URL, client id and secret, authorization and token URLs, resource and scopes to paste into ChatGPT's advanced OAuth settings. Use `client_secret_post` when client secrets are required. `-CallbackUrl` accepts the full callback URL or just the ID ChatGPT shows.
+
+To check a running setup, `scripts/test-bridge.ps1` calls `/health` locally and on the public URL, plus both OAuth discovery documents. `scripts/start-bridge.ps1` loads `.env` and starts the bridge without a tunnel. All scripts read `.env` from the repository root by default (`-EnvPath` overrides it).
 
 ### HTTP safety
 

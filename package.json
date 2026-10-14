@@ -10,11 +10,12 @@
     "start": "node dist/server.js",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint:scripts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate-powershell-syntax.ps1",
     "stdio": "tsx src/stdio.ts",
     "start:stdio": "node dist/stdio.js",
     "mcp:install": "node scripts/manage-mcp.js install",
     "mcp:uninstall": "node scripts/manage-mcp.js uninstall",
-    "mcp:sync": "node scripts/populate-gemini-mcp.js",
+    "mcp:sync": "node scripts/sync-mcp-clients.js",
     "chatgpt:register": "powershell -ExecutionPolicy Bypass -File scripts/register-chatgpt-client.ps1",
     "workspace": "tsx src/workspace-cli.ts"
   },

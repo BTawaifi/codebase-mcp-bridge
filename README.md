@@ -1,6 +1,6 @@
 # Codebase MCP Bridge
 
-A compact [Model Context Protocol](https://modelcontextprotocol.io) server that gives LLM clients (ChatGPT, Claude, Codex, Gemini, Cursor) **controlled** access to a source repository: search, read, patch with rollback, Git, and allowlisted validation.
+A compact [Model Context Protocol](https://modelcontextprotocol.io) server that gives LLM clients (ChatGPT, Claude, Codex, Cursor, Antigravity) **controlled** access to a source repository: search, read, patch with rollback, Git, and allowlisted validation.
 
 > **Design rule:** the bridge provides capabilities and facts; the model provides workflow and reasoning.
 
@@ -10,7 +10,7 @@ There are no prompts, no workflow macros and no mandatory call sequence, just 16
 
 - **Safe edits.** `code.patch` applies unified diffs with stale-content checks and takes a rollback snapshot. Every mutation can be undone with `code.rollback`, which itself creates an inverse snapshot.
 - **Batched, bounded I/O.** Up to 10 searches or 10 file/range reads per call, run with bounded concurrency. Each search returns up to 200 matches by default (500 on request). Combined output is capped and truncation is always reported. File discovery is paginated.
-- **Secrets stay out.** Search and read skip secret-bearing files. Git operations refuse `.env`, private keys and Git internals. Audit logs store metadata only, never source or full arguments.
+- **Secrets stay out.** Search and read skip secret-bearing files. Git operations refuse `.env`, private keys and Git internals. The optional audit log (`BRIDGE_ENABLE_AUDIT`) stores metadata only, never source or full arguments.
 - **Operator-controlled trust.** The model can list and target workspaces but can't add them. Trust is granted out of band with a CLI.
 - **Validation without a shell.** `validation.run` runs allowlisted command ids. Its arguments reject shell metacharacters, and output defaults to failures only. Arbitrary shell (`command.run`) is off unless the operator enables it.
 - **Two transports.** stdio for local agents; Streamable HTTP with OAuth (dynamic client registration, refresh tokens) for ChatGPT connectors and remote clients. High-risk tools stay blocked over HTTP unless explicitly allowed.
@@ -36,7 +36,7 @@ node dist/stdio.js          # stdio, for local agents
 npm run dev                 # HTTP endpoint at http://localhost:3030/mcp
 ```
 
-Client setup (Claude, Codex, Cursor, Gemini CLI, ChatGPT connector over OAuth) is in [docs/clients.md](docs/clients.md). Tool-selection guidance for models is in [docs/mcp-instructions.md](docs/mcp-instructions.md).
+Client setup (Claude, Codex, Cursor, Antigravity, ChatGPT connector over OAuth) is in [docs/clients.md](docs/clients.md). The full tool reference is in [docs/reference.md](docs/reference.md), and tool-selection guidance for models in [docs/mcp-instructions.md](docs/mcp-instructions.md).
 
 ## Configuration
 
@@ -54,7 +54,7 @@ Client setup (Claude, Codex, Cursor, Gemini CLI, ChatGPT connector over OAuth) i
 | `BRIDGE_MAX_COMMAND_OUTPUT_BYTES` | `50000` | Raw command output cap |
 | `CODEBASE_MCP_WORKSPACE_MANIFEST` | unset | Override the validation-command manifest |
 
-Trust another repository: `npm run workspace -- trust "C:\path\to\repo" my-repo`.
+All settings, including limits, ripgrep and diagnostics, are listed in [`.env.example`](.env.example). Trust another repository: `npm run workspace -- trust "C:\path\to\repo" my-repo`.
 
 Transient data (symbol cache, rollback snapshots, audit log, OAuth state) lives in `.ai-bridge/` inside each repository.
 
@@ -77,6 +77,7 @@ tests/                    node:test suites: tool bounds, security, OAuth, patchi
 npm run typecheck
 npm test          # typecheck + node:test suites
 npm run build
+npm run lint:scripts   # PowerShell syntax check (Windows)
 ```
 
 ## License

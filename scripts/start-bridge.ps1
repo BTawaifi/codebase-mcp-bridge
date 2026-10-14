@@ -1,23 +1,19 @@
 param(
-  [string]$EnvPath = "../.env"
+  [string]$EnvPath
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "load-env.ps1")
 
+if (!$EnvPath) { $EnvPath = $DefaultEnvPath }
 if (!(Test-Path -LiteralPath $EnvPath)) {
   throw "Missing $EnvPath. Create it from .env.example first."
 }
-
-Get-Content -LiteralPath $EnvPath | ForEach-Object {
-  $line = $_.Trim()
-  if (!$line -or $line.StartsWith("#")) { return }
-  $parts = $line.Split("=", 2)
-  if ($parts.Count -ne 2) { return }
-  [Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
-}
+Import-BridgeEnv -Path $EnvPath | Out-Null
 
 Write-Host "BRIDGE_PUBLIC_URL=$env:BRIDGE_PUBLIC_URL"
 Write-Host "BRIDGE_REPO_ROOT=$env:BRIDGE_REPO_ROOT"
 Write-Host "Starting bridge..."
+Set-Location -LiteralPath $BridgeRepoRoot
 npm run dev
